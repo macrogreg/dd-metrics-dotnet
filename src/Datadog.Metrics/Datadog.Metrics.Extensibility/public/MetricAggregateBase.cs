@@ -108,7 +108,7 @@ namespace Datadog.Metrics.Extensibility
         internal void ReinitializeAndReturnToOwner()
         {
             OnReinitialize();
-            _owner.TrySetSpareAggregate(this);
+            _owner.TryRecycleAggregate(this);
         }
 
         internal bool IsOwner(MetricAggregatorBase aggregator)

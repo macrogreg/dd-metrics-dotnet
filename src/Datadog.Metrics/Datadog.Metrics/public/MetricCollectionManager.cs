@@ -8,12 +8,6 @@ namespace Datadog.Metrics
 {
     public sealed class MetricCollectionManager : IDisposable
     {
-        //private struct AggregateInfo
-        //{
-        //    internal MetricAggregateBase
-
-        //}
-
 #pragma warning disable IDE1006  // Static fields acting as semantic constants {
 
         private static readonly Metric[] EmptyMetricsCollection = new Metric[0];
@@ -277,17 +271,11 @@ namespace Datadog.Metrics
                 }
             }
 
-            // Reset the aggragetes' state and return them to their respective aggregators, so that the objects can be reused:
-
-            for (int blockIndex = 0; blockIndex < aggregatesBlocksCount; blockIndex++)
-            {
-                MetricAggregateBase[] aggregatesBlock = aggregates[blockIndex];
-                for (int blockOffset = 0; blockOffset < aggregatesBlock.Length; blockOffset++)
-                {
-                    MetricAggregateBase aggregate = aggregatesBlock[blockOffset];
-                    aggregate.ReinitializeAndReturnToOwner();
-                }
-            }
+            // The 'submissionManager' may hold on to the the aggregate instances until they are serialized and sent, even if this happens asynchrously.
+            // So, data will be serialized directly from the aggregates.
+            // When the metrics submission manager no longer needs an instance of MetricAggregateBase because it was submitted,
+            // or becasue the submission failed and will not be retried, it must call 'aggregate.ReinitializeAndReturnToOwner()'.
+            // That will cause the aggregate to reset and to be returned to its aggregator's object pool.
         }
     }
 }

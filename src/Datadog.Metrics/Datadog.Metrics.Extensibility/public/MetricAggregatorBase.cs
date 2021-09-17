@@ -7,12 +7,14 @@ namespace Datadog.Metrics.Extensibility
 {
     public abstract class MetricAggregatorBase
     {
+        private const int MaxSpareAggregatesCount = 3;
+
         private MetricAggregateBase _currentAggregate;
-        private MetricAggregateBase _spareAggregate;
+        private readonly MetricAggregateBase[] _spareAggregates = new MetricAggregateBase[MaxSpareAggregatesCount];
+
 
         public MetricAggregatorBase()
         {
-            _spareAggregate = null;
             _currentAggregate = CreateNewAggregateInstance();
             _currentAggregate.StartAggregationPeriod(DateTimeOffset.Now, Environment.TickCount);
         }
@@ -40,27 +42,43 @@ namespace Datadog.Metrics.Extensibility
 
         internal MetricAggregateBase StartNextAggregationPeriod(DateTimeOffset periodStartTime, int periodStartPreciseMs)
         {
-            MetricAggregateBase nextAggregate = Interlocked.Exchange(ref _spareAggregate, null);
-            if (nextAggregate == null)
-            {
-                nextAggregate = CreateNewAggregateInstance();
-            }
-
+            MetricAggregateBase nextAggregate = GetOrCreateFreshAggregate();
             nextAggregate.StartAggregationPeriod(periodStartTime, periodStartPreciseMs);
 
             MetricAggregateBase prevAggregate = Interlocked.Exchange(ref _currentAggregate, nextAggregate);
             return prevAggregate;
         }
 
-        internal bool TrySetSpareAggregate(MetricAggregateBase spareAggregate)
+        private MetricAggregateBase GetOrCreateFreshAggregate()
         {
-            if (spareAggregate != null && spareAggregate.IsOwner(this))
+            MetricAggregateBase freshAggregate = null;
+            for (int i = 0; i < MaxSpareAggregatesCount && freshAggregate == null; i++)
             {
-                Concurrent.TrySetOrGetValue(ref _spareAggregate, spareAggregate, out bool success);
-                return success;
+                if (_spareAggregates[i] != null)
+                {
+                    freshAggregate = Interlocked.Exchange(ref _spareAggregates[i], null);
+                }
             }
 
-            return false;
+            return freshAggregate ?? CreateNewAggregateInstance();
+        }
+
+        internal bool TryRecycleAggregate(MetricAggregateBase spareAggregate)
+        {
+            bool hasRecycled = false;
+
+            if (spareAggregate != null && spareAggregate.IsOwner(this))
+            {
+                for (int i = 0; i < MaxSpareAggregatesCount && false == hasRecycled; i++)
+                {
+                    if (_spareAggregates[i] == null)
+                    {
+                        hasRecycled = (null == Interlocked.CompareExchange(ref _spareAggregates[i], spareAggregate, null));
+                    }
+                }
+            }
+
+            return hasRecycled;
         }
     }
 }
