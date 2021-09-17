@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net461;netcoreapp3.1</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <SharedSrcBaseDir>$(MSBuildThisFileDirectory)\..\SharedAssets</SharedSrcBaseDir>
+    <SharedSrcBaseLabel>Shared-Src</SharedSrcBaseLabel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(SharedSrcBaseDir)\Datadog.Util\internal\Validate.cs"
+             Link="$(SharedSrcBaseLabel)\Datadog.Util\internal\%(Filename)%(Extension)" />
+    <Compile Include="$(SharedSrcBaseDir)\Datadog.Util\internal\Concurrent.cs"
+             Link="$(SharedSrcBaseLabel)\Datadog.Util\internal\%(Filename)%(Extension)" />
+    <Compile Include="$(SharedSrcBaseDir)\Datadog.Util\internal\DateTimeOffsetExtensions.cs"
+             Link="$(SharedSrcBaseLabel)\Datadog.Util\internal\%(Filename)%(Extension)" />
+    <Compile Include="$(SharedSrcBaseDir)\Datadog.Util\internal\Number.cs"
+             Link="$(SharedSrcBaseLabel)\Datadog.Util\internal\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>
