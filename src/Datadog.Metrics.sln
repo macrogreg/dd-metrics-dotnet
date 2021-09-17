@@ -5,7 +5,27 @@ VisualStudioVersion = 16.0.31410.357
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Datadog.Metrics", "Datadog.Metrics\Datadog.Metrics.csproj", "{12D137B7-CADB-4DA5-B925-D565BA46300C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Datadog.Metrics.Samples.SimpleUsage", "Datadog.Metrics.Samples.SimpleUsage\Datadog.Metrics.Samples.SimpleUsage.csproj", "{CCCAFAF3-A63A-4D72-82E8-939260B03CD3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Datadog.Metrics.Samples.SimpleUsage", "Datadog.Metrics.Samples.SimpleUsage\Datadog.Metrics.Samples.SimpleUsage.csproj", "{CCCAFAF3-A63A-4D72-82E8-939260B03CD3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "[RepoFiles]", "[RepoFiles]", "{87D2A38F-C0C2-4B16-A1B8-15AB327B34EA}"
+	ProjectSection(SolutionItems) = preProject
+		..\.EnlistmentRoot.marker = ..\.EnlistmentRoot.marker
+		..\.gitignore = ..\.gitignore
+		..\CODEOWNERS = ..\CODEOWNERS
+		..\Directory.Build.props = ..\Directory.Build.props
+		..\LICENSE = ..\LICENSE
+		..\README.md = ..\README.md
+		..\RepoAndBuild-DirectoryStructure-General.props = ..\RepoAndBuild-DirectoryStructure-General.props
+		..\RepoAndBuild-DirectoryStructure-RepoSpecific.props = ..\RepoAndBuild-DirectoryStructure-RepoSpecific.props
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{FFE6196D-D635-4345-9472-58FB1EDAC86C}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		.SourceRoot.marker = .SourceRoot.marker
+		CodeAnalysis.props = CodeAnalysis.props
+		NuGet.config = NuGet.config
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,6 +44,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FFE6196D-D635-4345-9472-58FB1EDAC86C} = {87D2A38F-C0C2-4B16-A1B8-15AB327B34EA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DC85E980-B79F-4048-AB1D-C7519C849DE8}
