@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Threading;
-using Datadog.Util;
+using Infocat.Util;
 
-namespace Datadog.Metrics
+namespace Infocat.Metrics
 {
     /// <summary>
     /// This class represents the aggregation cycle.

@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace Datadog.Metrics.Extensibility
+namespace Infocat.Metrics.Extensibility
 {
     /// <summary>
     /// This is a powerfull base class for metrics with (mostly) lock-free aggregation logic.

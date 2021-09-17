@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Datadog.Metrics.Samples.SimpleUsage
+namespace Infocat.Metrics.Samples.SimpleUsage
 {
     internal class Program
     {

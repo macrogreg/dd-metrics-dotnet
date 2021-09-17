@@ -2,7 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace Datadog.Util
+namespace Infocat.Util
 {
     internal static class Concurrent
     {

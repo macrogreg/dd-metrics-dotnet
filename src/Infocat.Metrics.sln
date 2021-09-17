@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31410.357
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Datadog.Metrics", "Datadog.Metrics\Datadog.Metrics.csproj", "{12D137B7-CADB-4DA5-B925-D565BA46300C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Infocat.Metrics", "Infocat.Metrics\Infocat.Metrics.csproj", "{12D137B7-CADB-4DA5-B925-D565BA46300C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Datadog.Metrics.Samples.SimpleUsage", "Datadog.Metrics.Samples.SimpleUsage\Datadog.Metrics.Samples.SimpleUsage.csproj", "{CCCAFAF3-A63A-4D72-82E8-939260B03CD3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Infocat.Metrics.Samples.SimpleUsage", "Infocat.Metrics.Samples.SimpleUsage\Infocat.Metrics.Samples.SimpleUsage.csproj", "{CCCAFAF3-A63A-4D72-82E8-939260B03CD3}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "[RepoFiles]", "[RepoFiles]", "{87D2A38F-C0C2-4B16-A1B8-15AB327B34EA}"
 	ProjectSection(SolutionItems) = preProject

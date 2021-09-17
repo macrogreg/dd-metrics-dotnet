@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using Datadog.Metrics.Extensibility;
-using Datadog.Util;
+using Infocat.Metrics.Extensibility;
+using Infocat.Util;
 
-namespace Datadog.Metrics
+namespace Infocat.Metrics
 {
     public sealed class MetricCollectionManager : IDisposable
     {

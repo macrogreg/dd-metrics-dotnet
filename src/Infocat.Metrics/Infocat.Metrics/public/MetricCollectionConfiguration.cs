@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Datadog.Metrics
+namespace Infocat.Metrics
 {
     public class MetricCollectionConfiguration
     {

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using Datadog.Metrics.Extensibility;
+using Infocat.Metrics.Extensibility;
 
-namespace Datadog.Metrics
+namespace Infocat.Metrics
 {
     public class APIs { }
 

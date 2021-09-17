@@ -10,14 +10,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="$(SharedSrcBaseDir)\Datadog.Util\internal\Validate.cs"
-             Link="$(SharedSrcBaseLabel)\Datadog.Util\internal\%(Filename)%(Extension)" />
-    <Compile Include="$(SharedSrcBaseDir)\Datadog.Util\internal\Concurrent.cs"
-             Link="$(SharedSrcBaseLabel)\Datadog.Util\internal\%(Filename)%(Extension)" />
-    <Compile Include="$(SharedSrcBaseDir)\Datadog.Util\internal\DateTimeOffsetExtensions.cs"
-             Link="$(SharedSrcBaseLabel)\Datadog.Util\internal\%(Filename)%(Extension)" />
-    <Compile Include="$(SharedSrcBaseDir)\Datadog.Util\internal\Number.cs"
-             Link="$(SharedSrcBaseLabel)\Datadog.Util\internal\%(Filename)%(Extension)" />
+    <Compile Include="$(SharedSrcBaseDir)\Infocat.Util\internal\Validate.cs"
+             Link="$(SharedSrcBaseLabel)\Infocat.Util\internal\%(Filename)%(Extension)" />
+    <Compile Include="$(SharedSrcBaseDir)\Infocat.Util\internal\Concurrent.cs"
+             Link="$(SharedSrcBaseLabel)\Infocat.Util\internal\%(Filename)%(Extension)" />
+    <Compile Include="$(SharedSrcBaseDir)\Infocat.Util\internal\DateTimeOffsetExtensions.cs"
+             Link="$(SharedSrcBaseLabel)\Infocat.Util\internal\%(Filename)%(Extension)" />
+    <Compile Include="$(SharedSrcBaseDir)\Infocat.Util\internal\Number.cs"
+             Link="$(SharedSrcBaseLabel)\Infocat.Util\internal\%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

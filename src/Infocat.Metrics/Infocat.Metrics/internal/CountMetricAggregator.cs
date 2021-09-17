@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Datadog.Metrics.Extensibility;
+using Infocat.Metrics.Extensibility;
 
-namespace Datadog.Metrics
+namespace Infocat.Metrics
 {
     internal sealed class CountMetricAggregator : MetricAggregatorBase
     {

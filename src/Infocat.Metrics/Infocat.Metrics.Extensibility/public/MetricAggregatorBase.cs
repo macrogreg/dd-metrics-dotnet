@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Datadog.Util;
+using Infocat.Util;
 
-namespace Datadog.Metrics.Extensibility
+namespace Infocat.Metrics.Extensibility
 {
     public abstract class MetricAggregatorBase
     {

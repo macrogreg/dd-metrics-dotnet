@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Datadog.Metrics
+namespace Infocat.Metrics
 {
     /// <summary>
     /// A very simple version of a reader-writer lock.

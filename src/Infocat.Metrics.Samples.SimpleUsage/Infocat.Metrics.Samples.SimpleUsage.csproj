@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Datadog.Metrics\Datadog.Metrics.csproj" />
+    <ProjectReference Include="..\Infocat.Metrics\Infocat.Metrics.csproj" />
   </ItemGroup>
 
 </Project>

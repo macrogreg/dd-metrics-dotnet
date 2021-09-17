@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Datadog.Metrics.Extensibility
+namespace Infocat.Metrics.Extensibility
 {
     public struct MetricIdentity : IEquatable<MetricIdentity>, IComparable<MetricIdentity>
     {

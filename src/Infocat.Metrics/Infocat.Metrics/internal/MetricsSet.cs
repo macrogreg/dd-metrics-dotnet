@@ -2,10 +2,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using Datadog.Metrics.Extensibility;
-using Datadog.Util;
+using Infocat.Metrics.Extensibility;
+using Infocat.Util;
 
-namespace Datadog.Metrics
+namespace Infocat.Metrics
 {
     // Stores data as both, a list and a dictionary for fast sequantial and look-up access.
     // The collection is imutable and creates a complete copy of the held collections when mutated.

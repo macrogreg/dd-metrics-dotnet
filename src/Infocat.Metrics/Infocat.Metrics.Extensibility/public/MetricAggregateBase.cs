@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Threading;
-using Datadog.Util;
+using Infocat.Util;
 
-namespace Datadog.Metrics.Extensibility
+namespace Infocat.Metrics.Extensibility
 {
     public class MetricAggregateBase
     {

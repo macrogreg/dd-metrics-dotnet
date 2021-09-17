@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace Datadog.Metrics.Extensibility
+namespace Infocat.Metrics.Extensibility
 {
     /// <summary>
     /// The metric values buffer is a key component of the (mostly) lock-free aggregation logic.

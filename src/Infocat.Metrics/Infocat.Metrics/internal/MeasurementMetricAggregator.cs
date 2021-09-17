@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
-using Datadog.Metrics.Extensibility;
-using Datadog.Util;
+using Infocat.Metrics.Extensibility;
+using Infocat.Util;
 
-namespace Datadog.Metrics
+namespace Infocat.Metrics
 {
     internal sealed class MeasurementMetricAggregator : MetricAggregatorBase
     {

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using Datadog.Util;
+using Infocat.Util;
 
-namespace Datadog.Metrics
+namespace Infocat.Metrics
 {
     public sealed class MetricTag : IEquatable<MetricTag>, IComparable<MetricTag>
     {

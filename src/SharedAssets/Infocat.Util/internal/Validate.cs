@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace Datadog.Util
+namespace Infocat.Util
 {
     internal static class Validate
     {
