@@ -5,7 +5,7 @@ using Datadog.Util;
 namespace Datadog.Metrics
 {
     public sealed class MetricTag : IEquatable<MetricTag>, IComparable<MetricTag>
-    {        
+    {
         private const char Separator_NameValue = ':';
         private const char Separator_MultipleTags = ',';
 
@@ -187,7 +187,7 @@ namespace Datadog.Metrics
 
         public bool Equals(MetricTag otherTag)
         {
-            return (otherTag == null) ? false : _string.Equals(otherTag._string, StringComparison.Ordinal);
+            return (otherTag != null) && _string.Equals(otherTag._string, StringComparison.Ordinal);
         }
 
         public int CompareTo(MetricTag other)

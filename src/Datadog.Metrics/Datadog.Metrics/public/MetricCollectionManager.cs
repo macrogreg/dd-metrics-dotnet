@@ -47,18 +47,18 @@ namespace Datadog.Metrics
         public IReadOnlyCollection<Metric> GetMetrics()
         {
             MetricsSet metrics = _metrics;
-            return metrics;            
+            return metrics;
         }
 
         public IReadOnlyCollection<Metric> GetMetrics(string metricName)
-        {            
+        {
             MetricsSet metrics = _metrics;
             if (String.IsNullOrWhiteSpace(metricName) || metrics.Count == 0)
             {
                 return EmptyMetricsCollection;
             }
 
-            var filteredMetrics = new List<Metric>();            
+            var filteredMetrics = new List<Metric>();
             for (int i = 0; i < metrics.Count; i++)
             {
                 Metric m = metrics[i];
@@ -243,7 +243,7 @@ namespace Datadog.Metrics
                     MetricAggregatorBase aggregator = metrics[metricIndex].Aggregator;
                     metricIndex++;
 
-                    MetricAggregateBase aggregate = aggregator.StartNextAggregationPeriod(aggregationCycleStartTime, currentTickCountMs);                    
+                    MetricAggregateBase aggregate = aggregator.StartNextAggregationPeriod(aggregationCycleStartTime, currentTickCountMs);
                     aggregatesBlock[blockOffset] = aggregate;
                 }
             }
@@ -269,11 +269,11 @@ namespace Datadog.Metrics
 
             IMetricsSubmissionManager submissionManager = _submissionManager;
             if (submissionManager != null)
-            {                
+            {
                 for (int blockIndex = 0; blockIndex < aggregatesBlocksCount; blockIndex++)
                 {
                     MetricAggregateBase[] aggregatesBlock = aggregates[blockIndex];
-                    submissionManager.SumbitMetrics(aggregatesBlock);                    
+                    submissionManager.SumbitMetrics(aggregatesBlock);
                 }
             }
 
@@ -289,6 +289,5 @@ namespace Datadog.Metrics
                 }
             }
         }
-        
     }
 }

@@ -6,7 +6,7 @@ using Datadog.Util;
 namespace Datadog.Metrics.Extensibility
 {
     public abstract class MetricAggregatorBase
-    {        
+    {
         private MetricAggregateBase _currentAggregate;
         private MetricAggregateBase _spareAggregate;
 
@@ -51,7 +51,7 @@ namespace Datadog.Metrics.Extensibility
             MetricAggregateBase prevAggregate = Interlocked.Exchange(ref _currentAggregate, nextAggregate);
             return prevAggregate;
         }
-        
+
         internal bool TrySetSpareAggregate(MetricAggregateBase spareAggregate)
         {
             if (spareAggregate != null && spareAggregate.IsOwner(this))

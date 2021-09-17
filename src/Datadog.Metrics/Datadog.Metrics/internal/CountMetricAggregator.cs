@@ -71,6 +71,6 @@ namespace Datadog.Metrics
         {
             Aggregate aggregate = (Aggregate) CurrentAggregate;
             Interlocked.Add(ref aggregate._sum, value);
-        }                
+        }
     }
 }

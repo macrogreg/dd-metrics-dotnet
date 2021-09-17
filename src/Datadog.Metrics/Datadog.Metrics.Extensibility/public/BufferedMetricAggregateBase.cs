@@ -201,7 +201,7 @@ namespace Datadog.Metrics.Extensibility
                 }
             }
 
-            return freshBuffer ?? new ValuesBuffer<TBufferedValue>(_valuesBufferCapacity);                
+            return freshBuffer ?? new ValuesBuffer<TBufferedValue>(_valuesBufferCapacity);
         }
 
         private void RecycleBuffer(ValuesBuffer<TBufferedValue> buffer)
@@ -213,7 +213,7 @@ namespace Datadog.Metrics.Extensibility
             {
                 if (_spareValuesBuffers[i] == null)
                 {
-                    hasRecycled = (null == Interlocked.CompareExchange(ref _spareValuesBuffers[i], buffer, null));                
+                    hasRecycled = (null == Interlocked.CompareExchange(ref _spareValuesBuffers[i], buffer, null));
                 }
             }
         }

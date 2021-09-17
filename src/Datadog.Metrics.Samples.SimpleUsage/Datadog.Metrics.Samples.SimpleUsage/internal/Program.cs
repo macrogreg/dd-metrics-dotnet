@@ -1,12 +1,10 @@
 ﻿using System;
 
-using Datadog.Metrics;
-
 namespace Datadog.Metrics.Samples.SimpleUsage
 {
     internal class Program
     {
-        public static void Main(string[] args)
+        public static void Main(string[] _)
         {
             Console.WriteLine("Hello World!");
 

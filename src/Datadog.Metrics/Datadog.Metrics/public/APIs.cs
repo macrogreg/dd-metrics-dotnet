@@ -9,7 +9,7 @@ namespace Datadog.Metrics
     public class Metric
     {
         private MetricIdentity _metricId;
-        private MetricKind _metricKind;
+        private readonly MetricKind _metricKind;
         private MetricCollectionManager _metricCollectionManager;
 
         private Metric()
@@ -24,7 +24,7 @@ namespace Datadog.Metrics
         }
 
         public MetricIdentity Identity { get; }
-        public MetricCollectionManager MetricManager { get;  }
+        public MetricCollectionManager MetricManager { get; }
         public MetricAggregatorBase Aggregator { get; internal set; }
 
         //Metric(string metricName, MetricType measurement)
@@ -46,7 +46,7 @@ namespace Datadog.Metrics
                                           + $" is different from the specified {nameof(metricCollectionManager)}. A {nameof(Metric)} cannot be"
                                           + $" associated with more than one {nameof(MetricCollectionManager)} instance at the same time."
                                           + $" Remove this {nameof(Metric)} from its current {nameof(MetricCollectionManager)} instance,"
-                                          + $" before associating it with another {nameof(MetricCollectionManager)}.",                                     
+                                          + $" before associating it with another {nameof(MetricCollectionManager)}.",
                                             nameof(metricCollectionManager));
             }
 
@@ -62,16 +62,16 @@ namespace Datadog.Metrics
 
     public interface IMetricCollectionConfiguration
     {
-        MetricCollectionManager Activate(IMetricCollectionConfiguration previousConfig);         
+        MetricCollectionManager Activate(IMetricCollectionConfiguration previousConfig);
     }
 
     public interface IMetricsSubmissionConfiguration
     {
-        IMetricsSubmissionManager Activate(IMetricsSubmissionConfiguration previousConfig);         
+        IMetricsSubmissionManager Activate(IMetricsSubmissionConfiguration previousConfig);
     }
 
     public interface IMetricsSubmissionManager
-    {        
+    {
         void SumbitMetrics(IReadOnlyList<MetricAggregateBase> aggregatesBlock);
     }
 

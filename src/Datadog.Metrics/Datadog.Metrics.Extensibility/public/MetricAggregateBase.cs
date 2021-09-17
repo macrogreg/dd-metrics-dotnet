@@ -86,18 +86,18 @@ namespace Datadog.Metrics.Extensibility
             // See also https://stackoverflow.com/questions/243351/environment-tickcount-vs-datetime-now/1078089#1078089
             get { return IsActive ? 0 : (_periodEndPreciseMs - _periodStartPreciseMs); }
         }
-        
+
         internal void StartAggregationPeriod(DateTimeOffset periodStartTime, int periodStartPreciseMs)
         {
             _periodStartTimestamp = periodStartTime;
             _periodEndTimestamp = DateTimeOffset.MinValue;
             _periodStartPreciseMs = periodStartPreciseMs;
             _periodEndPreciseMs = 0;
-            IsActive = true;            
+            IsActive = true;
         }
 
         internal void FinishAggregationPeriod(DateTimeOffset periodEndTimestamp, int periodEndPreciseMs)
-        {            
+        {
             _periodEndTimestamp = periodEndTimestamp;
             _periodEndPreciseMs = periodEndPreciseMs;
             IsActive = false;

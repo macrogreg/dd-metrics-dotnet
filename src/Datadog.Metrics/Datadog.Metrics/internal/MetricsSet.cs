@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Datadog.Metrics.Extensibility;
 using Datadog.Util;
@@ -115,7 +114,7 @@ namespace Datadog.Metrics
         {
             get { return _table.Keys; }
         }
-        
+
         public IEnumerable<Metric> Values
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

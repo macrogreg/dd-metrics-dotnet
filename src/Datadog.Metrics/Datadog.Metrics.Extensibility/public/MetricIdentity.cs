@@ -13,7 +13,6 @@ namespace Datadog.Metrics.Extensibility
         {
             return (_name == otherName) || ((_name != null) && _name.Equals(otherName, StringComparison.Ordinal));
         }
-        
 
 
         public override string ToString()

@@ -85,7 +85,7 @@ namespace Datadog.Metrics
                                                    + $" However, {config.AggregationPeriodLengthSeconds} was specified in the configuration.");
             }
 
-            
+
             if (config.AggregationPeriodLengthSeconds > SecondsInDay)
             {
                 throw new ArgumentOutOfRangeException($"{nameof(config)}.{nameof(MetricCollectionConfiguration.AggregationPeriodLengthSeconds)}",
@@ -113,17 +113,17 @@ namespace Datadog.Metrics
                             && 60 != config.AggregationPeriodLengthSeconds)
                 {
                     throw new ArgumentException("If the aggregation period length is shorter than one minute, it must be one of:"
-                                              + " 5 sec, 10 sec, 15 sec, 20 sec, 30 sec."                                             
+                                              + " 5 sec, 10 sec, 15 sec, 20 sec, 30 sec."
                                              + $" However, {config.AggregationPeriodLengthSeconds} was specified in the configuration.");
                 }
             }
 
             return config.AggregationPeriodLengthSeconds;
         }
-        
+
         ~AggregationCycle()
-        {             
-             Dispose(disposing: false);
+        {
+            Dispose(disposing: false);
         }
 
         public void Dispose()
@@ -258,6 +258,7 @@ namespace Datadog.Metrics
             ;   // No-op for now.
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0059:Unnecessary assignment of a value", Justification = "@ToDo this suppression once we figure out the logging.")]
         private void LogMainLoopEntry()
         {
             int osThreadId;
@@ -431,7 +432,7 @@ namespace Datadog.Metrics
             }
 
             // Dispose any disposable fields:
-            AutoResetEvent loopSignal = Interlocked.Exchange(ref _loopSignal, null);                
+            AutoResetEvent loopSignal = Interlocked.Exchange(ref _loopSignal, null);
             if (loopSignal != null)
             {
                 try

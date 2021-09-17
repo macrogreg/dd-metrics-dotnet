@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using Datadog.Metrics.Extensibility;
 using Datadog.Util;
 
@@ -12,13 +11,13 @@ namespace Datadog.Metrics
         {
             private const int ValuesBufferCapacity = 500;
             private const int MaxSpareBuffersCount = 3;
-            
+
             private readonly object _updateAggregateLock = new ReaderWriterLockSuperSlim();
 
             private int _count;
             private double _sum;
             private double _min;
-            private double _max;            
+            private double _max;
             private double _sumOfSquares;
             private double _stdDev;
 
@@ -41,7 +40,7 @@ namespace Datadog.Metrics
                 get { return _min; }
             }
 
-            public double Max    
+            public double Max
             {
                 get { return _max; }
             }
@@ -65,7 +64,7 @@ namespace Datadog.Metrics
                 double bufValsMin = lockedValuesBuffer[0];
                 double bufValsMax = lockedValuesBuffer[0];
                 double bufValsSumOfSquares = 0;
-                
+
                 for (int v = 0; v < valuesInBufferCount; v++)
                 {
                     double val = lockedValuesBuffer[v];
@@ -81,7 +80,7 @@ namespace Datadog.Metrics
                     bufValsSumOfSquares += val * val;
                 }
 
-                lock(_updateAggregateLock)
+                lock (_updateAggregateLock)
                 {
                     _count += bufValsCount;
                     _sum += bufValsSum;
@@ -111,7 +110,7 @@ namespace Datadog.Metrics
                 base.OnFinishAggregationPeriod();
 
                 lock (_updateAggregateLock)
-                {                    
+                {
                     _sum = Number.EnsureConcreteValue(_sum);
                     _min = Number.EnsureConcreteValue(_min);
                     _max = Number.EnsureConcreteValue(_max);
@@ -142,7 +141,7 @@ namespace Datadog.Metrics
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal override bool Collect(int value)
         {
-            return Collect((double) value);            
+            return Collect((double) value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

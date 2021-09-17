@@ -14,7 +14,7 @@ namespace Datadog.Metrics.Extensibility
     /// <remarks>ValuesBuffer{T} is used with structs, make sure that the specified capacity does does not place the
     /// buffer onto the large object heap.</remarks>
     public class ValuesBuffer<T>
-    {        
+    {
         internal const int MaxCapacity = 5000;
 
         private const int IsLocked = 1;
