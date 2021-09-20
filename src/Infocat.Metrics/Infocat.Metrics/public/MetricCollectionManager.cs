@@ -91,7 +91,7 @@ namespace Infocat.Metrics
         /// <p>It is assumed that actual modifications of the metric collections occur orders of magnitude less frequently than look-ups.
         /// Therefore, all access is lock-free and the underlying collections are copied on each modification.</p>
         /// </summary>
-        public void GetOrCreateMetric(MetricIdentity metricId, MetricKind metricKind, out Metric metric, out bool wasCreatedNew)
+        public void GetOrCreateMetric(MetricIdentity metricId, IMetricKind metricKind, out Metric metric, out bool wasCreatedNew)
         {
             //Validate.NotNull(metricId, nameof(metricId));
             Validate.NotNull(metricKind, nameof(metricKind));
@@ -200,7 +200,7 @@ namespace Infocat.Metrics
             MetricsSet metrics = _metrics;
             int metricsCount = metrics.Count;
 
-            // If we have more than 85000/8 = 10625 metrics, then a simple array of aggregates below will end up on the Large Object Heap.
+            // If we have more than 85000/8 = 10625 metrics, then a simple array of aggregators below will end up on the Large Object Heap.
             // Using a huge collection to store the metrics inside of the Manager was OK, becasue that collection likely exists for a very long time
             // and does not put a lot of pressure on the GC. However, the arrays below are short-lived.
             // However unlikely a huge number of metrics is, this would be a significant performance issue.
@@ -208,53 +208,85 @@ namespace Infocat.Metrics
             // We use block sizes smaller than 10625 as not-so-huge arrays are still more friendly to the GC.
 
             // Calculate block sizes:
-            const int AggregatesBlockSize = 2000;
-            int aggregatesBlocksCount = (metricsCount / AggregatesBlockSize) + 1;
-            int aggregatesLastBlockSize = metricsCount % AggregatesBlockSize;
+            const int AggregatorsBlockSize = 2000;
+            int aggregatorsBlocksCount = (metricsCount / AggregatorsBlockSize) + 1;
+            int aggregatorsLastBlockSize = metricsCount % AggregatorsBlockSize;
 
             // Allocate blocks:
-            MetricAggregateBase[][] aggregates = new MetricAggregateBase[aggregatesBlocksCount][];
+            MetricAggregatorBase[][] aggregators = new MetricAggregatorBase[aggregatorsBlocksCount][];
 
-            aggregates[aggregatesBlocksCount - 1] = new MetricAggregateBase[aggregatesLastBlockSize];
-            for (int b = 0; b < aggregatesBlocksCount - 1; b++)
+            aggregators[aggregatorsBlocksCount - 1] = new MetricAggregatorBase[aggregatorsLastBlockSize];
+            for (int b = 0; b < aggregatorsBlocksCount - 1; b++)
             {
-                aggregates[b] = new MetricAggregateBase[AggregatesBlockSize];
+                aggregators[b] = new MetricAggregatorBase[AggregatorsBlockSize];
             }
 
             // Get the PRECIZE timestamp for this aggregation cycle transition:
             // (Recall that aggregationCycleStartTime is ROUNDED.)
             int currentTickCountMs = Environment.TickCount;
 
-            // Swap out the aggregates for all metrics:
+            // Swap out the aggregators for all metrics:
             // (This must be a super fast loop, so that we avoid significant divergence from the timestamps.)
 
             int metricIndex = 0;
-            for (int blockIndex = 0; blockIndex < aggregatesBlocksCount; blockIndex++)
+            for (int blockIndex = 0; blockIndex < aggregatorsBlocksCount; blockIndex++)
             {
-                MetricAggregateBase[] aggregatesBlock = aggregates[blockIndex];
-                for (int blockOffset = 0; blockOffset < aggregatesBlock.Length; blockOffset++)
+                MetricAggregatorBase[] aggregatorsBlock = aggregators[blockIndex];
+                for (int blockOffset = 0; blockOffset < aggregatorsBlock.Length; blockOffset++)
                 {
-                    MetricAggregatorBase aggregator = metrics[metricIndex].Aggregator;
+                    MetricAggregatorBase prevCycleAggregator = metrics[metricIndex].StartNextAggregationPeriod(aggregationCycleStartTime, currentTickCountMs);
+                    aggregatorsBlock[blockOffset] = prevCycleAggregator;
                     metricIndex++;
-
-                    MetricAggregateBase aggregate = aggregator.StartNextAggregationPeriod(aggregationCycleStartTime, currentTickCountMs);
-                    aggregatesBlock[blockOffset] = aggregate;
                 }
             }
 
-            // At his point the aggregates we obtained are no longer receiving data.
-            // We can take time to give a chance to each aggregate to finalize its calculations for the aggregation cycle that just completed:
-            // (This is OK to take a little longer; aggregates should offload final computations to here.)
+            // At his point the aggregators we obtained are no longer receiving data.
+            // (Note the race where s metric producer may have started the Collect(..) invocation chain before the above loop got to that
+            // respective metric and that Collect(..) invocation is still ongoing. In such a case the respective aggregator may still receive
+            // the value from the respective Coolect(..) invocation chain. The aggregator implementation may choose to respect or drop such values
+            // but either way, in must be haldeled gracefully.)
+            // Now we can take time to give a chance to each aggregator to finalize its calculations for the aggregation cycle that just completed.
+            // This is OK to take a little longer; aggregators should offload final computations to here.
+            // The result of finishing an aggregation cycle is an aggregate. We store the aggregates into blocks (arrays) of the same size
+            // as the aggregator blocks.
 
-            for (int blockIndex = 0; blockIndex < aggregatesBlocksCount; blockIndex++)
+            IMetricAggregate[][] aggregates = new IMetricAggregate[aggregatorsBlocksCount][];
+
+            for (int blockIndex = 0; blockIndex < aggregatorsBlocksCount; blockIndex++)
             {
-                MetricAggregateBase[] aggregatesBlock = aggregates[blockIndex];
-                for (int blockOffset = 0; blockOffset < aggregatesBlock.Length; blockOffset++)
+                MetricAggregatorBase[] aggregatorsBlock = aggregators[blockIndex];
+                int currBlockSize = aggregatorsBlock.Length;
+
+                IMetricAggregate[] aggregatesBlock = new IMetricAggregate[currBlockSize];
+                aggregates[blockIndex] = aggregatesBlock;
+
+                for (int blockOffset = 0; blockOffset < currBlockSize; blockOffset++)
                 {
-                    MetricAggregateBase aggregate = aggregatesBlock[blockOffset];
-                    aggregate.FinishAggregationPeriod(aggregationCycleStartTime, currentTickCountMs);
+                    MetricAggregatorBase aggregator = aggregatorsBlock[blockOffset];
+                    aggregatesBlock[blockOffset] = aggregator.FinishAggregationPeriod(aggregationCycleStartTime, currentTickCountMs);
                 }
             }
+
+            // We have constructed the aggregates that will be passed to the metric submission manager for serialization and sending.
+            // We will now return the aggregators to their respective metrics' aggregator-object-pools for reuse.
+            // At the same time we will also clear out the references to the blocks (arrays) that held the aggregators so that they be
+            // collected ASAP, hopefully still in Gen0.
+
+            for (int blockIndex = 0; blockIndex < aggregatorsBlocksCount; blockIndex++)
+            {
+                MetricAggregatorBase[] aggregatorsBlock = aggregators[blockIndex];
+                for (int blockOffset = 0; blockOffset < aggregatorsBlock.Length; blockOffset++)
+                {
+                    aggregatorsBlock[blockOffset].ReinitializeAndReturnToOwner();
+                }
+
+                aggregators[blockIndex] = null;
+            }
+
+            // Assignment is required to make aggregators available for GC before the subsequent submission code which can take time:
+#pragma warning disable IDE0059  // Unnecessary assignment of a value
+            aggregators = null;
+#pragma warning restore IDE0059  // Unnecessary assignment of a value
 
             // Submit metrics to the sink. This may happen sync or async:
             // (Longer operations (e.g. retrying HTTP posts) should be async.)
@@ -264,16 +296,16 @@ namespace Infocat.Metrics
             IMetricsSubmissionManager submissionManager = _submissionManager;
             if (submissionManager != null)
             {
-                for (int blockIndex = 0; blockIndex < aggregatesBlocksCount; blockIndex++)
+                for (int blockIndex = 0; blockIndex < aggregates.Length; blockIndex++)
                 {
-                    MetricAggregateBase[] aggregatesBlock = aggregates[blockIndex];
+                    IMetricAggregate[] aggregatesBlock = aggregates[blockIndex];
                     submissionManager.SumbitMetrics(aggregatesBlock);
                 }
             }
 
             // The 'submissionManager' may hold on to the the aggregate instances until they are serialized and sent, even if this happens asynchrously.
             // So, data will be serialized directly from the aggregates.
-            // When the metrics submission manager no longer needs an instance of MetricAggregateBase because it was submitted,
+            // When the metrics submission manager no longer needs an instance of IMetricAggregate because it was submitted,
             // or becasue the submission failed and will not be retried, it must call 'aggregate.ReinitializeAndReturnToOwner()'.
             // That will cause the aggregate to reset and to be returned to its aggregator's object pool.
         }

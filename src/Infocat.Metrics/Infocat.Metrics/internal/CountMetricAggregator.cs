@@ -2,35 +2,54 @@
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Infocat.Metrics.Extensibility;
+using Infocat.Util;
 
 namespace Infocat.Metrics
 {
     internal sealed class CountMetricAggregator : MetricAggregatorBase
     {
-        internal sealed class Aggregate : MetricAggregateBase
+        internal sealed class Aggregate : IMetricAggregate
         {
-            internal long _sum;
+            private readonly CountMetricAggregator _owner;
+            private long _sum;
 
-            public Aggregate(CountMetricAggregator owner)
-                : base(owner)
-            { }
+            internal Aggregate(CountMetricAggregator owner)
+            {
+                Validate.NotNull(owner, nameof(owner));
+
+                _owner = owner;
+                _sum = 0;
+            }
 
             public long Sum
             {
                 get { return _sum; }
             }
 
-            protected override void OnReinitialize()
+            public bool IsOwner(MetricAggregatorBase aggregator)
+            {
+                return Object.ReferenceEquals(_owner, aggregator);
+            }
+
+            public void ReinitializeAndReturnToOwner()
             {
                 _sum = 0;
+                _owner.TryRecycleAggregate(this);
+            }
+
+            internal void Set(long sum)
+            {
+                _sum = sum;
             }
         }
 
-        public CountMetricAggregator()
-            : base()
+        private long _sum;
+
+        public CountMetricAggregator(Metric owner)
+            : base(owner)
         { }
 
-        protected override MetricAggregateBase CreateNewAggregateInstance()
+        protected override IMetricAggregate CreateNewAggregateInstance()
         {
             return new Aggregate(this);
         }
@@ -41,7 +60,7 @@ namespace Infocat.Metrics
             long valueLong = (long) value;
             if (value == valueLong)
             {
-                Collect(valueLong);
+                CollectValue(valueLong);
                 return true;
             }
 
@@ -51,14 +70,14 @@ namespace Infocat.Metrics
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal override bool Collect(int value)
         {
-            Collect((long) value);
+            CollectValue((long) value);
             return true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal override bool CanCollect(double value)
         {
-            return value == (long) value;
+            return (value == (long) value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -67,10 +86,26 @@ namespace Infocat.Metrics
             return true;
         }
 
-        private void Collect(long value)
+        protected override void OnReinitialize()
         {
-            Aggregate aggregate = (Aggregate) CurrentAggregate;
-            Interlocked.Add(ref aggregate._sum, value);
+            Interlocked.Exchange(ref _sum, 0);
+        }
+
+        protected override void OnFinishAggregationPeriod(IMetricAggregate periodAggregate)
+        {
+            Validate.NotNull(periodAggregate, nameof(periodAggregate));
+            if (!(periodAggregate is Aggregate countAggregate))
+            {
+                throw new ArgumentException($"The specified {nameof(periodAggregate)} must be an instance of type \"{typeof(Aggregate).FullName}\","
+                                          + $" but an instance of type \"{periodAggregate.GetType().FullName}\" was specified instead.");
+            }
+
+            countAggregate.Set(Interlocked.Add(ref _sum, 0));
+        }
+
+        private void CollectValue(long value)
+        {
+            Interlocked.Add(ref _sum, value);
         }
     }
 }

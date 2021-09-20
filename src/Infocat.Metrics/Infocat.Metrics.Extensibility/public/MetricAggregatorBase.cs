@@ -7,26 +7,34 @@ namespace Infocat.Metrics.Extensibility
 {
     public abstract class MetricAggregatorBase
     {
-        private const int MaxSpareAggregatesCount = 3;
+        private const int SpareAggregateObjectPoolSize = 15;
+        private readonly SimpleObjectPool<IMetricAggregate> _spareAggregateObjectPool = new SimpleObjectPool<IMetricAggregate>(SpareAggregateObjectPoolSize);
 
-        private MetricAggregateBase _currentAggregate;
-        private readonly MetricAggregateBase[] _spareAggregates = new MetricAggregateBase[MaxSpareAggregatesCount];
+        private readonly Metric _owner;
+        private DateTimeOffset _periodStartTimestamp;
+        private DateTimeOffset _periodEndTimestamp;
+        private int _periodStartPreciseMs;
+        private int _periodEndPreciseMs;
+        private bool _isActive;
 
-
-        public MetricAggregatorBase()
+        private MetricAggregatorBase()
         {
-            _currentAggregate = CreateNewAggregateInstance();
-            _currentAggregate.StartAggregationPeriod(DateTimeOffset.Now, Environment.TickCount);
+            throw new NotSupportedException("Please use other ctor overloads.");
         }
 
-        protected MetricAggregateBase CurrentAggregate
+        protected MetricAggregatorBase(Metric owner)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _currentAggregate; }
-        }
+            Validate.NotNull(owner, nameof(owner));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected abstract MetricAggregateBase CreateNewAggregateInstance();
+            _owner = owner;
+            _periodStartTimestamp = DateTimeOffset.MinValue;
+            _periodEndTimestamp = DateTimeOffset.MinValue;
+            _periodStartPreciseMs = 0;
+            _periodEndPreciseMs = 0;
+            _isActive = false;
+
+            OnReinitialize();
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal abstract bool Collect(double value);
@@ -40,45 +48,100 @@ namespace Infocat.Metrics.Extensibility
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal abstract bool CanCollect(int value);
 
-        internal MetricAggregateBase StartNextAggregationPeriod(DateTimeOffset periodStartTime, int periodStartPreciseMs)
-        {
-            MetricAggregateBase nextAggregate = GetOrCreateFreshAggregate();
-            nextAggregate.StartAggregationPeriod(periodStartTime, periodStartPreciseMs);
+        protected abstract IMetricAggregate CreateNewAggregateInstance();
 
-            MetricAggregateBase prevAggregate = Interlocked.Exchange(ref _currentAggregate, nextAggregate);
-            return prevAggregate;
+        /// <summary>
+        /// Subclasses must override to perform any work required to (re-)initialize this instance when it was just created
+        /// or when an the aggregator's aggregation period has been finished the aggregator is about to be reused for a future aggregation period.        
+        /// This method is called by the <c>ctor</c> and at the start of <see cref="ReinitializeAndReturnToOwner()"/>.
+        /// </summary>
+        protected abstract void OnReinitialize();
+
+        /// <summary>
+        /// Subclasses must override to perform any work required when an aggregation period has just been finalized,
+        /// and to initialize the specified <c>aggregate</c>.
+        /// This method is called at the end of <see cref="FinishAggregationPeriod(DateTimeOffset, Int32)"/>.
+        /// </summary>
+        protected abstract void OnFinishAggregationPeriod(IMetricAggregate periodAggregate);
+
+        internal DateTimeOffset PeriodStartTimestamp
+        {
+            get { return _periodStartTimestamp; }
         }
 
-        private MetricAggregateBase GetOrCreateFreshAggregate()
+        internal DateTimeOffset PeriodEndTimestamp
         {
-            MetricAggregateBase freshAggregate = null;
-            for (int i = 0; i < MaxSpareAggregatesCount && freshAggregate == null; i++)
-            {
-                if (_spareAggregates[i] != null)
-                {
-                    freshAggregate = Interlocked.Exchange(ref _spareAggregates[i], null);
-                }
-            }
-
-            return freshAggregate ?? CreateNewAggregateInstance();
+            get { return _periodEndTimestamp; }
         }
 
-        internal bool TryRecycleAggregate(MetricAggregateBase spareAggregate)
+        internal int PeriodStartPreciseMs
         {
-            bool hasRecycled = false;
+            get { return _periodStartPreciseMs; }
+        }
 
-            if (spareAggregate != null && spareAggregate.IsOwner(this))
+        internal int PeriodEndPreciseMs
+        {
+            get { return _periodEndPreciseMs; }
+        }
+
+        internal bool IsActive
+        {
+            get { return Volatile.Read(ref _isActive); }
+            private set { Volatile.Write(ref _isActive, value); }
+        }
+
+        internal TimeSpan FinishedDurationTime
+        {
+            get { return IsActive ? TimeSpan.Zero : _periodEndTimestamp - _periodStartTimestamp; }
+        }
+
+        internal int FinishedPeriodDurationPreciseMs
+        {
+            // This will correctly handle the duration, including overflow situations, iff the duration is less than 24.9 days.
+            // See also https://stackoverflow.com/questions/243351/environment-tickcount-vs-datetime-now/1078089#1078089
+            get { return IsActive ? 0 : (_periodEndPreciseMs - _periodStartPreciseMs); }
+        }
+
+        internal void StartAggregationPeriod(DateTimeOffset periodStartTime, int periodStartPreciseMs)
+        {
+            _periodStartTimestamp = periodStartTime;
+            _periodEndTimestamp = DateTimeOffset.MinValue;
+            _periodStartPreciseMs = periodStartPreciseMs;
+            _periodEndPreciseMs = 0;
+            IsActive = true;
+        }
+
+        internal IMetricAggregate FinishAggregationPeriod(DateTimeOffset periodEndTimestamp, int periodEndPreciseMs)
+        {
+            _periodEndTimestamp = periodEndTimestamp;
+            _periodEndPreciseMs = periodEndPreciseMs;
+            IsActive = false;
+
+            if (!_spareAggregateObjectPool.TryPull(out IMetricAggregate aggregate))
             {
-                for (int i = 0; i < MaxSpareAggregatesCount && false == hasRecycled; i++)
-                {
-                    if (_spareAggregates[i] == null)
-                    {
-                        hasRecycled = (null == Interlocked.CompareExchange(ref _spareAggregates[i], spareAggregate, null));
-                    }
-                }
+                aggregate = CreateNewAggregateInstance();
             }
 
-            return hasRecycled;
+            OnFinishAggregationPeriod(aggregate);
+            return aggregate;
+        }
+
+        internal void ReinitializeAndReturnToOwner()
+        {
+            OnReinitialize();
+            _owner.TryRecycleAggregator(this);
+        }
+
+        internal bool IsOwner(Metric metric)
+        {
+            return Object.ReferenceEquals(_owner, metric);
+        }
+
+        internal bool TryRecycleAggregate(IMetricAggregate spareAggregate)
+        {
+            return (spareAggregate != null)
+                        && spareAggregate.IsOwner(this)
+                        && _spareAggregateObjectPool.TryAdd(spareAggregate);
         }
     }
 }

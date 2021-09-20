@@ -10,41 +10,41 @@ namespace Infocat.Metrics.Extensibility
     /// This is required becasue aggregates for some aggregation kinds are expensive to update and/or require a lock (e.g.
     /// some percentile algorithms). By collecting a some values first, the expensive/locked operation can occur less frequently.
     /// </summary>    
-    public abstract class BufferedMetricAggregateBase<TBufferedValue> : MetricAggregateBase
+    public abstract class BufferedMetricAggregatorBase<TBufferedValue> : MetricAggregatorBase
     {
         // 100 is permitted, but typicaly, a much smaller number should be used.
-        private const int MaxMaxSpareBuffersCount = 100;
+        private const int MaxSpareBuffersObjectPoolCapacity = 50;
 
         private readonly int _valuesBufferCapacity;
-        private readonly int _maxSpareBuffersCount;
+        private readonly int _spareBuffersObjectPoolCapacity;
         private readonly bool _isCollectSynchronized;
 
         private ValuesBuffer<TBufferedValue> _currentValuesBuffer;
-        private readonly ValuesBuffer<TBufferedValue>[] _spareValuesBuffers;
+        private readonly SimpleObjectPool<ValuesBuffer<TBufferedValue>> _spareBuffersObjectPool;
 
         private readonly ReaderWriterLockSuperSlim _finishAggregationPeriodLock = new ReaderWriterLockSuperSlim();
 
 
         /// <summary>
-        /// Initializes a <c>BufferedMetricAggregateBase</c> instance.
+        /// Initializes a <c>BufferedMetricAggregatorBase</c> instance.
         /// </summary>
         /// <param name="owner">The owner aggregator.</param>
         /// <param name="bufferCapacity">The size of a single value buffer. Values on the order of 10 - 1000 is recommended.
         /// Max permitted value is <see cref="ValuesBuffer{T}.MaxCapacity"/></param>
-        /// <param name="maxSpareBuffersCount">Size of the value buffer object pool. A value on the order 1 - 5 is recommeneded.
-        /// Max permitted value is <see cref="MaxMaxSpareBuffersCount"/>.</param>
+        /// <param name="spareBuffersObjectPoolCapacity">Size of the value buffer object pool. A value on the order 1 - 5 is recommeneded.
+        /// Max permitted value is <see cref="MaxSpareBuffersObjectPoolCapacity"/>.</param>
         /// <param name="isCollectSynchronized">Specifies whether additional synchrinization is to be used to ensure that the return
         /// value of the <see cref="Collect(Double)"/> method truthfully describes whether the metric value was collected.<br />
         /// <para>If <c>isCollectSynchronized</c> is <c>false</c>, there is a rare, but possible race where Collect(..) will return <c>true</c>,
         /// but the value will not be collected. That can happen if the <c>MetricCollectionManager</c> completes the aggregation cycle and
-        /// the <c>OnFinishAggregationPeriod()</c> method of this aggregate starts and finishes completely (including its loop) when
+        /// the <c>OnFinishAggregationPeriod()</c> method of this aggregator starts and finishes completely (including its loop) when
         /// the <c>Collect(..)</c> chain was already invoked, but the first <c>.TryAdd(..)</c> attempt on the buffer has not yet occurred.</para>
         /// <para>Setting <c>isCollectSynchronized</c> to <c>true</c> ensures that additional checks and synchronization are performed, and the 
         /// value returned by the <c>Collect(..)</c> method of this instance always correctly describes whether the value was collected.</para>
-        /// <para>In is recommended that Metric Aggregate implementations consider opting into setting this value to <c>false</c>, becasue the
+        /// <para>In is recommended that Metric Aggregator implementations consider opting into setting this value to <c>false</c>, becasue the
         /// race may occur very rarely in practive, and the consequences of dropping a small number of metric values may be benign.
         /// In comparison, the increased synchronisation costs occur at every metric value connection.</para></param>
-        protected BufferedMetricAggregateBase(MetricAggregatorBase owner, int bufferCapacity, int maxSpareBuffersCount, bool isCollectSynchronized)
+        protected BufferedMetricAggregatorBase(Metric owner, int bufferCapacity, int spareBuffersObjectPoolCapacity, bool isCollectSynchronized)
             : base(owner)
         {
             if (bufferCapacity < 0)
@@ -60,36 +60,43 @@ namespace Infocat.Metrics.Extensibility
                                                    + $" but {bufferCapacity} was specified.");
             }
 
-            if (maxSpareBuffersCount < 0)
+            if (spareBuffersObjectPoolCapacity < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(maxSpareBuffersCount),
-                                                     $"{nameof(maxSpareBuffersCount)} may not be negative, but {maxSpareBuffersCount} was specified.");
+                throw new ArgumentOutOfRangeException(nameof(spareBuffersObjectPoolCapacity),
+                                                     $"{nameof(spareBuffersObjectPoolCapacity)} may not be negative,"
+                                                   + $" but {spareBuffersObjectPoolCapacity} was specified.");
             }
 
-            if (maxSpareBuffersCount > MaxMaxSpareBuffersCount)
+            if (spareBuffersObjectPoolCapacity > MaxSpareBuffersObjectPoolCapacity)
             {
-                throw new ArgumentOutOfRangeException(nameof(maxSpareBuffersCount),
-                                                     $"{nameof(maxSpareBuffersCount)} may not be larger than {MaxMaxSpareBuffersCount},"
-                                                   + $" but {maxSpareBuffersCount} was specified.");
+                throw new ArgumentOutOfRangeException(nameof(spareBuffersObjectPoolCapacity),
+                                                     $"{nameof(spareBuffersObjectPoolCapacity)} may not be larger than {MaxSpareBuffersObjectPoolCapacity},"
+                                                   + $" but {spareBuffersObjectPoolCapacity} was specified.");
             }
 
             _valuesBufferCapacity = bufferCapacity;
-            _maxSpareBuffersCount = maxSpareBuffersCount;
+            _spareBuffersObjectPoolCapacity = spareBuffersObjectPoolCapacity;
             _isCollectSynchronized = isCollectSynchronized;
 
             _currentValuesBuffer = new ValuesBuffer<TBufferedValue>(_valuesBufferCapacity);
-            _spareValuesBuffers = new ValuesBuffer<TBufferedValue>[_maxSpareBuffersCount];
+            _spareBuffersObjectPool = new SimpleObjectPool<ValuesBuffer<TBufferedValue>>(_spareBuffersObjectPoolCapacity);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Collect(TBufferedValue value)
+        protected bool CollectValue(TBufferedValue value)
         {
-            return _isCollectSynchronized ? CollectValueSynchronized(value) : CollectValue(value);
+            return _isCollectSynchronized ? CollectValueSynchronized(value) : CollectValueImplementation(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected bool CanCollectValue(TBufferedValue _)
+        {
+            return true;
         }
 
         protected abstract void OnFlushBuffer(ValuesBuffer<TBufferedValue> lockedValuesBuffer, int valuesInBufferCount);
 
-        protected override void OnFinishAggregationPeriod()
+        protected override void OnFinishAggregationPeriod(IMetricAggregate _)
         {
             FlushBuffersOnAggregationFinish();
         }
@@ -101,7 +108,7 @@ namespace Infocat.Metrics.Extensibility
             try
             {
                 return IsActive
-                            ? CollectValue(value)
+                            ? CollectValueImplementation(value)
                             : false;
             }
             finally
@@ -110,7 +117,7 @@ namespace Infocat.Metrics.Extensibility
             }
         }
 
-        private bool CollectValue(TBufferedValue value)
+        private bool CollectValueImplementation(TBufferedValue value)
         {
             ValuesBuffer<TBufferedValue> valuesBuffer = _currentValuesBuffer;
 
@@ -192,30 +199,18 @@ namespace Infocat.Metrics.Extensibility
 
         private ValuesBuffer<TBufferedValue> GetOrCreateFreshValuesBuffer()
         {
-            ValuesBuffer<TBufferedValue> freshBuffer = null;
-            for (int i = 0; i < _maxSpareBuffersCount && freshBuffer == null; i++)
+            if (!_spareBuffersObjectPool.TryPull(out ValuesBuffer<TBufferedValue> freshBuffer))
             {
-                if (_spareValuesBuffers[i] != null)
-                {
-                    freshBuffer = Interlocked.Exchange(ref _spareValuesBuffers[i], null);
-                }
+                freshBuffer = new ValuesBuffer<TBufferedValue>(_valuesBufferCapacity);
             }
 
-            return freshBuffer ?? new ValuesBuffer<TBufferedValue>(_valuesBufferCapacity);
+            return freshBuffer;
         }
 
         private void RecycleBuffer(ValuesBuffer<TBufferedValue> buffer)
         {
             buffer.Reset();
-            bool hasRecycled = false;
-
-            for (int i = 0; i < _maxSpareBuffersCount && false == hasRecycled; i++)
-            {
-                if (_spareValuesBuffers[i] == null)
-                {
-                    hasRecycled = (null == Interlocked.CompareExchange(ref _spareValuesBuffers[i], buffer, null));
-                }
-            }
+            _spareBuffersObjectPool.TryAdd(buffer);
         }
 
         private void FlushBuffer(ValuesBuffer<TBufferedValue> valuesBuffer)

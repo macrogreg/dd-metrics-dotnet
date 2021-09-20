@@ -5,137 +5,75 @@ using Infocat.Util;
 
 namespace Infocat.Metrics
 {
-    internal sealed class MeasurementMetricAggregator : MetricAggregatorBase
+    internal sealed class MeasurementMetricAggregator : BufferedMetricAggregatorBase<double>
     {
-        internal sealed class Aggregate : BufferedMetricAggregateBase<double>
+        internal sealed class Aggregate : IMetricAggregate
         {
-            private const int ValuesBufferCapacity = 500;
-            private const int MaxSpareBuffersCount = 3;
-
-            private readonly object _updateAggregateLock = new ReaderWriterLockSuperSlim();
-
+            private readonly MeasurementMetricAggregator _owner;
             private int _count;
-            private double _sum;
-            private double _min;
-            private double _max;
-            private double _sumOfSquares;
-            private double _stdDev;
+            private double _sum, _min, _max, _stdDev;
 
-            public Aggregate(MeasurementMetricAggregator owner)
-                : base(owner, ValuesBufferCapacity, MaxSpareBuffersCount, isCollectSynchronized: false)
-            { }
-
-            public int Count
+            internal Aggregate(MeasurementMetricAggregator owner)
             {
-                get { return _count; }
+                Validate.NotNull(owner, nameof(owner));
+
+                _owner = owner;
+                _count = 0;
+                _sum = _min = _max = _stdDev = 0.0;
             }
 
-            public double Sum
+            public int Count { get { return _count; } }
+
+            public double Sum { get { return _sum; } }
+
+            public double Min { get { return _min; } }
+
+            public double Max { get { return _max; } }
+
+            public double StdDev { get { return _stdDev; } }
+
+            public bool IsOwner(MetricAggregatorBase aggregator)
             {
-                get { return _sum; }
+                return Object.ReferenceEquals(_owner, aggregator);
             }
 
-            public double Min
-            {
-                get { return _min; }
-            }
-
-            public double Max
-            {
-                get { return _max; }
-            }
-
-            public double StdDev
-            {
-                get { return _stdDev; }
-            }
-
-
-            protected override void OnReinitialize()
+            public void ReinitializeAndReturnToOwner()
             {
                 _count = 0;
-                _sum = _min = _max = _sumOfSquares = _stdDev = 0.0;
+                _sum = _min = _max = _stdDev = 0.0;
+                _owner.TryRecycleAggregate(this);
             }
 
-            protected override void OnFlushBuffer(ValuesBuffer<double> lockedValuesBuffer, int valuesInBufferCount)
+            internal void Set(int count, double sum, double min, double max, double stdDev)
             {
-                int bufValsCount = 0;
-                double bufValsSum = 0.0;
-                double bufValsMin = lockedValuesBuffer[0];
-                double bufValsMax = lockedValuesBuffer[0];
-                double bufValsSumOfSquares = 0;
-
-                for (int v = 0; v < valuesInBufferCount; v++)
-                {
-                    double val = lockedValuesBuffer[v];
-                    if (Double.IsNaN(val))
-                    {
-                        continue;
-                    }
-
-                    bufValsCount++;
-                    bufValsSum += val;
-                    bufValsMin = (val < bufValsMin) ? val : bufValsMin;
-                    bufValsMax = (val > bufValsMax) ? val : bufValsMax;
-                    bufValsSumOfSquares += val * val;
-                }
-
-                lock (_updateAggregateLock)
-                {
-                    _count += bufValsCount;
-                    _sum += bufValsSum;
-                    _min = (bufValsMin < _min) ? bufValsMin : _min;
-                    _max = (bufValsMax > _max) ? bufValsMax : _max;
-                    _sumOfSquares += bufValsSumOfSquares;
-
-                    _stdDev = 0.0;
-                    if (_count > 0)
-                    {
-                        if (Double.IsInfinity(_sumOfSquares) || Double.IsInfinity(_sum))
-                        {
-                            _stdDev = Double.NaN;
-                        }
-                        else
-                        {
-                            double mean = _sum / _count;
-                            double variance = (_sumOfSquares / _count) - (mean * mean);
-                            _stdDev = Math.Sqrt(variance);
-                        }
-                    }
-                }
+                _count = count;
+                _sum = sum;
+                _min = min;
+                _max = max;
+                _stdDev = stdDev;
             }
-
-            protected override void OnFinishAggregationPeriod()
-            {
-                base.OnFinishAggregationPeriod();
-
-                lock (_updateAggregateLock)
-                {
-                    _sum = Number.EnsureConcreteValue(_sum);
-                    _min = Number.EnsureConcreteValue(_min);
-                    _max = Number.EnsureConcreteValue(_max);
-                    _sumOfSquares = Number.EnsureConcreteValue(_sumOfSquares);
-                    _stdDev = Number.EnsureConcreteValue(_stdDev);
-                }
-            }
-
-        }  // class MeasurementMetricAggregator.Aggregate
-
-
-        public MeasurementMetricAggregator()
-            : base()
-        { }
-
-        protected override MetricAggregateBase CreateNewAggregateInstance()
-        {
-            return new Aggregate(this);
         }
+
+        private const int ValuesBufferCapacity = 500;
+        private const int SpareBuffersObjectPoolCapacity = 3;
+
+        private readonly object _updateAggregateLock = new ReaderWriterLockSuperSlim();
+
+        private int _count;
+        private double _sum;
+        private double _min;
+        private double _max;
+        private double _sumOfSquares;
+        private double _stdDev;
+
+        public MeasurementMetricAggregator(Metric owner)
+            : base(owner, ValuesBufferCapacity, SpareBuffersObjectPoolCapacity, isCollectSynchronized: false)
+        { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal override bool Collect(double value)
         {
-            ((Aggregate) CurrentAggregate).Collect(value);
-            return true;
+            return base.CollectValue(value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -145,15 +83,95 @@ namespace Infocat.Metrics
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal override bool CanCollect(double _)
+        internal override bool CanCollect(double value)
         {
-            return true;
+            return base.CanCollectValue(value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal override bool CanCollect(int value)
         {
             return CanCollect((double) value);
+        }
+
+        protected override IMetricAggregate CreateNewAggregateInstance()
+        {
+            return new Aggregate(this);
+        }
+
+        protected override void OnReinitialize()
+        {
+            _count = 0;
+            _sum = _min = _max = _sumOfSquares = _stdDev = 0.0;
+        }
+
+        protected override void OnFlushBuffer(ValuesBuffer<double> lockedValuesBuffer, int valuesInBufferCount)
+        {
+            int bufValsCount = 0;
+            double bufValsSum = 0.0;
+            double bufValsMin = lockedValuesBuffer[0];
+            double bufValsMax = lockedValuesBuffer[0];
+            double bufValsSumOfSquares = 0;
+
+            for (int v = 0; v < valuesInBufferCount; v++)
+            {
+                double val = lockedValuesBuffer[v];
+                if (Double.IsNaN(val))
+                {
+                    continue;
+                }
+
+                bufValsCount++;
+                bufValsSum += val;
+                bufValsMin = (val < bufValsMin) ? val : bufValsMin;
+                bufValsMax = (val > bufValsMax) ? val : bufValsMax;
+                bufValsSumOfSquares += val * val;
+            }
+
+            lock (_updateAggregateLock)
+            {
+                _count += bufValsCount;
+                _sum += bufValsSum;
+                _min = (bufValsMin < _min) ? bufValsMin : _min;
+                _max = (bufValsMax > _max) ? bufValsMax : _max;
+                _sumOfSquares += bufValsSumOfSquares;
+
+                _stdDev = 0.0;
+                if (_count > 0)
+                {
+                    if (Double.IsInfinity(_sumOfSquares) || Double.IsInfinity(_sum))
+                    {
+                        _stdDev = Double.NaN;
+                    }
+                    else
+                    {
+                        double mean = _sum / _count;
+                        double variance = (_sumOfSquares / _count) - (mean * mean);
+                        _stdDev = Math.Sqrt(variance);
+                    }
+                }
+            }
+        }
+
+        protected override void OnFinishAggregationPeriod(IMetricAggregate periodAggregate)
+        {
+            Validate.NotNull(periodAggregate, nameof(periodAggregate));
+            if (!(periodAggregate is Aggregate measurementAggregate))
+            {
+                throw new ArgumentException($"The specified {nameof(periodAggregate)} must be an instance of type \"{typeof(Aggregate).FullName}\","
+                                          + $" but an instance of type \"{periodAggregate.GetType().FullName}\" was specified instead.");
+            }
+
+            base.OnFinishAggregationPeriod(measurementAggregate);
+
+            lock (_updateAggregateLock)
+            {
+                measurementAggregate.Set(_count,
+                                         Number.EnsureConcreteValue(_sum),
+                                         Number.EnsureConcreteValue(_min),
+                                         Number.EnsureConcreteValue(_max),
+                                         Number.EnsureConcreteValue(_stdDev));
+            }
         }
     }
 }
